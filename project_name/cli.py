@@ -7,6 +7,7 @@ Be creative! do whatever you want!
 - Start a web application
 - Import things from your .base module
 """
+from sodapy import Socrata
 
 
 def main():  # pragma: no cover
@@ -26,3 +27,16 @@ def main():  # pragma: no cover
         * Run an application (Flask, FastAPI, Django, etc.)
     """
     print("This will do something")
+    transient_fetch()
+
+def transient_fetch():
+
+    # Unauthenticated client only works with public data sets. Note 'None'
+    # in place of application token, and no username or password:
+    client = Socrata("data.austintexas.gov", None)
+
+    # First 2000 results, returned as JSON from API / converted to Python list of
+    # dictionaries by sodapy.
+    results = client.get("3syk-w9eu", limit=1)
+
+    print(results)
