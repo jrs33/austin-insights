@@ -8,6 +8,9 @@ Be creative! do whatever you want!
 - Import things from your .base module
 """
 from sodapy import Socrata
+import boto3
+import json
+import os
 
 
 def main():  # pragma: no cover
@@ -26,17 +29,23 @@ def main():  # pragma: no cover
         * List all available tasks
         * Run an application (Flask, FastAPI, Django, etc.)
     """
-    print("This will do something")
-    transient_fetch()
+    backfill_issued_permits_to_s3()
 
-def transient_fetch():
+def backfill_issued_permits_to_s3():
 
-    # Unauthenticated client only works with public data sets. Note 'None'
-    # in place of application token, and no username or password:
-    client = Socrata("data.austintexas.gov", None)
+    scraper = Socrata(os.environ.get("ODP_URL"), os.environ.get("ODP_API_TOKEN"))
 
-    # First 2000 results, returned as JSON from API / converted to Python list of
-    # dictionaries by sodapy.
-    results = client.get("3syk-w9eu", limit=1)
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY"),
+        aws_secret_access_key=os.environ.get("AWS_SECRET_KEY")
+    )
+    s3_bucket = s3_client.Bucket(os.environ.get("S3_BUCKET_NAME"))
 
-    print(results)
+    result_generator = scraper.get_all("3syk-w9eu", limit=1)
+
+    for item in result_generator:
+        project_id = item.get("project_id")
+        key = 'permits/2022/5/1/' + project_id + ".json" # remove date hard code
+        data = json.dumps(item)
+        s3_bucket.put_object(Key=key, Body=data)
