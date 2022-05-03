@@ -7,6 +7,13 @@ Be creative! do whatever you want!
 - Start a web application
 - Import things from your .base module
 """
+import json
+import os
+from datetime import datetime
+
+import boto3
+from dotenv import load_dotenv
+from sodapy import Socrata
 
 
 def main():  # pragma: no cover
@@ -25,4 +32,30 @@ def main():  # pragma: no cover
         * List all available tasks
         * Run an application (Flask, FastAPI, Django, etc.)
     """
-    print("This will do something")
+    load_dotenv()
+    backfill_issued_permits_to_s3()
+
+
+def backfill_issued_permits_to_s3():
+
+    current_time = datetime.now()
+
+    s3_client = boto3.resource("s3")
+    s3_bucket = s3_client.Bucket(os.environ.get("S3_BUCKET_NAME"))
+
+    scraper = Socrata(
+        os.environ.get("ODP_URL"), os.environ.get("ODP_API_TOKEN")
+    )
+    result_generator = scraper.get_all("3syk-w9eu", limit=1)
+
+    for item in result_generator:
+        project_id = item.get("project_id")
+
+        key = "permits/{year}/{month}/{day}/{project_id}.json".format(
+            year=current_time.year,
+            month=current_time.month,
+            day=current_time.day,
+            project_id=project_id,
+        )
+        data = json.dumps(item)
+        s3_bucket.put_object(Key=key, Body=data)
