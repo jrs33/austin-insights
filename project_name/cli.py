@@ -40,13 +40,12 @@ def backfill_issued_permits_to_s3():
 
     current_time = datetime.now()
 
-    scraper = Socrata(
-        os.environ.get("ODP_URL"), os.environ.get("ODP_API_TOKEN")
-    )
-
     s3_client = boto3.resource("s3")
     s3_bucket = s3_client.Bucket(os.environ.get("S3_BUCKET_NAME"))
 
+    scraper = Socrata(
+        os.environ.get("ODP_URL"), os.environ.get("ODP_API_TOKEN")
+    )
     result_generator = scraper.get_all("3syk-w9eu", limit=1)
 
     for item in result_generator:
