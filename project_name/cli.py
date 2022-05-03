@@ -8,6 +8,7 @@ Be creative! do whatever you want!
 - Import things from your .base module
 """
 from sodapy import Socrata
+from dotenv import load_dotenv
 import boto3
 import json
 import os
@@ -29,17 +30,14 @@ def main():  # pragma: no cover
         * List all available tasks
         * Run an application (Flask, FastAPI, Django, etc.)
     """
+    load_dotenv()
     backfill_issued_permits_to_s3()
 
 def backfill_issued_permits_to_s3():
 
     scraper = Socrata(os.environ.get("ODP_URL"), os.environ.get("ODP_API_TOKEN"))
 
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_KEY")
-    )
+    s3_client = boto3.resource('s3')
     s3_bucket = s3_client.Bucket(os.environ.get("S3_BUCKET_NAME"))
 
     result_generator = scraper.get_all("3syk-w9eu", limit=1)
