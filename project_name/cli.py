@@ -9,9 +9,12 @@ Be creative! do whatever you want!
 """
 from sodapy import Socrata
 from dotenv import load_dotenv
+
 import boto3
+
 import json
 import os
+from datetime import datetime
 
 
 def main():  # pragma: no cover
@@ -35,6 +38,8 @@ def main():  # pragma: no cover
 
 def backfill_issued_permits_to_s3():
 
+    current_time = datetime.now()
+
     scraper = Socrata(os.environ.get("ODP_URL"), os.environ.get("ODP_API_TOKEN"))
 
     s3_client = boto3.resource('s3')
@@ -44,6 +49,7 @@ def backfill_issued_permits_to_s3():
 
     for item in result_generator:
         project_id = item.get("project_id")
-        key = 'permits/2022/5/1/' + project_id + ".json" # remove date hard code
+
+        key = "permits/{year}/{month}/{day}/{project_id}.json".format(year=current_time.year, month=current_time.month, day=current_time.day, project_id=project_id)
         data = json.dumps(item)
         s3_bucket.put_object(Key=key, Body=data)
