@@ -46,7 +46,7 @@ def backfill_issued_permits_to_s3():
     scraper = Socrata(
         os.environ.get("ODP_URL"), os.environ.get("ODP_API_TOKEN")
     )
-    result_generator = scraper.get_all("3syk-w9eu", limit=1)
+    result_generator = scraper.get_all("3syk-w9eu", limit=1000)
 
     for item in result_generator:
         project_id = item.get("project_id")
