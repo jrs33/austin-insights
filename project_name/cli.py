@@ -1,61 +1,40 @@
-"""CLI interface for project_name project.
-
-Be creative! do whatever you want!
-
-- Install click or typer and create a CLI app
-- Use builtin argparse
-- Start a web application
-- Import things from your .base module
-"""
-import json
 import os
 from datetime import datetime
 
 import boto3
+import requests
 from dotenv import load_dotenv
-from sodapy import Socrata
+
+PERMITS_CSV_FILE_URL = "https://data.austintexas.gov/api/views/3syk-w9eu/rows.csv?accessType=DOWNLOAD"
 
 
 def main():  # pragma: no cover
     """
     The main function executes on commands:
     `python -m project_name` and `$ project_name `.
-
-    This is your program's entry point.
-
-    You can change this function to do whatever you want.
-    Examples:
-        * Run a test suite
-        * Run a server
-        * Do some other stuff
-        * Run a command line application (Click, Typer, ArgParse)
-        * List all available tasks
-        * Run an application (Flask, FastAPI, Django, etc.)
     """
     load_dotenv()
     backfill_issued_permits_to_s3()
 
 
 def backfill_issued_permits_to_s3():
+    print("downloading permit data...")
+    with requests.get(PERMITS_CSV_FILE_URL, stream=True) as permits_download:
+        with open(os.path.join(os.getcwd(), "permits.csv"), "w+") as local_csv:
+            for chunk in permits_download.iter_content(chunk_size=1024):
+                if chunk:
+                    local_csv.write(chunk.decode("utf-8"))
 
+    print("uploading to s3...")
+    s3 = boto3.client("s3")
     current_time = datetime.now()
-
-    s3_client = boto3.resource("s3")
-    s3_bucket = s3_client.Bucket(os.environ.get("S3_BUCKET_NAME"))
-
-    scraper = Socrata(
-        os.environ.get("ODP_URL"), os.environ.get("ODP_API_TOKEN")
+    object_name = "permits/{year}/{month}/{day}/permits.csv".format(
+        year=current_time.year, month=current_time.month, day=current_time.day
     )
-    result_generator = scraper.get_all("3syk-w9eu", limit=1)
+    s3.upload_file(
+        os.path.join(os.getcwd(), "permits.csv"),
+        os.environ.get("S3_BUCKET_NAME"),
+        object_name,
+    )
 
-    for item in result_generator:
-        project_id = item.get("project_id")
-
-        key = "permits/{year}/{month}/{day}/{project_id}.json".format(
-            year=current_time.year,
-            month=current_time.month,
-            day=current_time.day,
-            project_id=project_id,
-        )
-        data = json.dumps(item)
-        s3_bucket.put_object(Key=key, Body=data)
+    print("done!")
